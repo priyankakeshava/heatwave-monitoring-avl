@@ -217,6 +217,7 @@ st.markdown(
         border: 1px solid var(--line);
         border-radius: 10px;
         overflow: hidden;
+        max-width: 100%;
     }
     .stCodeBlock, [data-testid="stCode"] {
         background: var(--panel);
@@ -226,8 +227,36 @@ st.markdown(
     }
     .stCaption, [data-testid="stCaptionContainer"] { color: var(--muted); }
     @media (max-width: 800px) {
-        .block-container { padding: 2.3rem 1.25rem 3rem; }
-        h1 { font-size: 2.4rem !important; }
+        .block-container { padding: 1.6rem 0.85rem 2.5rem; }
+        h1 { font-size: 2.35rem !important; }
+        h2 { font-size: 1.45rem !important; }
+        h3 { font-size: 1.05rem !important; }
+        .hero-copy { font-size: 0.92rem; line-height: 1.55; margin-bottom: 1.8rem; }
+        .eyebrow { font-size: 0.62rem; letter-spacing: 0.08em; }
+        [data-testid="stSidebar"] { min-width: 250px; max-width: 82vw; }
+        [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+            flex-wrap: wrap;
+            row-gap: 0.8rem;
+        }
+        [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="column"] {
+            flex: 1 1 calc(50% - 0.5rem) !important;
+            min-width: calc(50% - 0.5rem) !important;
+        }
+        [data-testid="stMetric"] {
+            min-height: 96px;
+            padding: 0.75rem 0.7rem 0.6rem;
+        }
+        [data-testid="stMetricValue"] { font-size: 1.55rem; }
+        [data-testid="stMetricLabel"] p { font-size: 0.66rem; }
+        [data-testid="stDataFrame"] { overflow-x: auto; }
+        [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap;
+            row-gap: 0.5rem;
+        }
+        [data-testid="stForm"] [data-testid="column"] {
+            min-width: 100% !important;
+            flex-basis: 100% !important;
+        }
     }
     </style>
     """,
