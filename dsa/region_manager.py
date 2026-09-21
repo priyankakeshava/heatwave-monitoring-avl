@@ -56,6 +56,19 @@ class RegionManager:
     def get_root(self, region: str):
         return self.region_array[self._get_index(region)].root
 
+    def all_readings(self):
+        readings = []
+        for region, tree in zip(REGIONS, self.region_array):
+            for record in tree.inorder():
+                readings.append(
+                    {
+                        "region": region,
+                        "timestamp": record.timestamp,
+                        "temperature": record.max_temp,
+                    }
+                )
+        return readings
+
     def load_from_csv(self, file_path: str):
         with open(file_path, mode='r') as file:
             reader = csv.DictReader(file)

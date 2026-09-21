@@ -1,44 +1,141 @@
-# Heatwave Monitoring — Streamlit UI (Person 3's part)
+# Heatwave Monitoring
 
-## Run it
+A Streamlit application for monitoring temperature readings across seven Indian regions. Each region is backed by its own timestamp-keyed AVL tree.
+
+## Run Locally
+
+From the project directory:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-It opens with 12 sample readings already seeded into each of the 7 regions
-so the dashboard, search, range query, and tree views aren't empty.
+Then open the local URL shown by Streamlit, usually `http://localhost:8501`.
 
-## What's in here
+## Features
 
-- `app.py` — the whole UI: Dashboard, Insert, Search, Range Query, Delete,
-  Tree Visualization, and an "About the Design" complexity summary. No AVL
-  logic lives here — every operation just calls a `RegionManager` method.
-- `mock_region_manager.py` — a **temporary** stand-in for
-  `dsa/region_manager.py`. It implements the exact interface the team agreed
-  on (`insert_reading`, `search_reading`, `range_query`, `delete_reading`),
-  backed by a real small AVL tree per region, so the demo and the tree
-  visualization behave correctly even before Person 1 & 2 finish.
+The sidebar provides these views:
 
-## Swapping in the real DSA modules
+- **Dashboard**: reading counts by region and a complete regional overview.
+- **Insert Reading**: add or update a reading by region, date, and temperature.
+- **Search Reading**: find all readings for a selected calendar date and region.
+- **Range Query**: return readings between two dates, including readable UTC times.
+- **Delete Reading**: delete all readings for a selected date and region.
+- **Tree Visualization**: inspect the AVL tree for one region, including node count, height, root balance, and readable node timestamps.
+- **All Data**: display the complete dataset with region, recorded UTC time, raw timestamp, and temperature.
+- **About the Design**: review the data-structure choices and operation complexity.
 
-Once Person 1 (`dsa/avl_tree.py`, `dsa/temp_record.py`) and Person 2
-(`dsa/region_manager.py`) are done:
+The application also displays the current UTC clock separately from the recorded time of each weather reading.
 
-1. Drop their `dsa/` folder next to `app.py`.
-2. Make sure `dsa/region_manager.py` exposes a `RegionManager` class with
-   the same method names used here.
-3. That's it — `app.py`'s import already tries `from dsa.region_manager
-   import RegionManager` first and only falls back to the mock if that
-   import fails. No UI code needs to change.
+## Data Storage
 
-If the real `RegionManager` doesn't have a `get_root(region)` method for
-the Tree Visualization page, either add a thin one that returns the root
-node for a region, or leave that page showing its fallback message.
+The default dataset is stored at:
 
-## Note on `region_count`
+```text
+data/weather_data.csv
+```
 
-The mock tracks per-region counts itself (`region_count`). If the real
-`RegionManager` doesn't expose that, the Dashboard page will just show
-`"?"` for the metric — everything else still works.
+The CSV must contain these columns:
+
+```csv
+region,timestamp,temperature
+North India,1700000000,32.5
+```
+
+`timestamp` is a Unix timestamp in seconds. The AVL tree uses this numeric value as its sorting key. The interface converts it to a readable UTC date and time when displaying results.
+
+The bundled CSV is loaded when the app starts. Insertions and deletions update both the in-memory AVL tree and the local CSV file:
+
+- A new `region + timestamp` pair is appended.
+- An existing `region + timestamp` pair updates its temperature.
+- Deleting a reading removes the matching CSV row.
+
+## Pseudocode
+
+### Load CSV
+
+```text
+create an empty AVL tree for each region
+for each row in weather_data.csv:
+	read region, timestamp, and temperature
+	insert the reading into that region's AVL tree
+```
+
+### Insert Reading
+
+```text
+convert selected date to a Unix timestamp
+find the AVL tree for the selected region
+if timestamp already exists:
+	update its temperature
+else:
+	insert a new node
+rebalance the tree
+write the new value to the CSV file
+```
+
+### Search Reading
+
+```text
+convert selected date to the start and end of that UTC day
+find the selected region's AVL tree
+run a range query between those timestamps
+display every matching reading with readable date and time
+```
+
+### Range Query
+
+```text
+convert start date to a Unix timestamp
+convert end date to the final second of that UTC day
+find the selected region's AVL tree
+return all nodes between the two timestamps in sorted order
+```
+
+### Delete Reading
+
+```text
+find all readings for the selected region and UTC day
+for each matching reading:
+	delete it from the AVL tree
+	rebalance the tree
+	remove it from the CSV file
+```
+
+### AVL Rebalancing
+
+```text
+balance factor = height(left subtree) - height(right subtree)
+if balance factor is greater than 1:
+	perform a right rotation or left-right rotation
+if balance factor is less than -1:
+	perform a left rotation or right-left rotation
+update node heights
+```
+
+## Project Structure
+
+```text
+heatwave-monitoring-avl-main/
+├── app.py                         Streamlit interface and CSV persistence
+├── requirements.txt               Python dependencies
+├── data/
+│   └── weather_data.csv           Default readings
+├── dsa/
+│   ├── __init__.py
+│   ├── avl_tree.py                AVL tree operations
+│   ├── region_manager.py          Seven-region AVL tree manager
+│   └── temp_record.py             AVL node model
+└── tests/
+	├── __init__.py
+	├── test_avl.py                AVL tree tests
+	└── test_region_manager.py     Region manager tests
+```
+
+## Tests
+
+```bash
+python -m unittest discover -v
+python -m py_compile app.py dsa/avl_tree.py dsa/region_manager.py dsa/temp_record.py
+```
