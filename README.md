@@ -17,8 +17,8 @@ Then open the local URL shown by Streamlit, usually `http://localhost:8501`.
 
 The sidebar provides these views:
 
-- **Dashboard**: reading counts by region and a complete regional overview.
-- **Insert Reading**: add or update a reading by region, date, and temperature.
+- **Dashboard**: reading counts by region, a complete regional overview, and heatwave threshold alerts.
+- **Insert Reading**: add or update a reading by region, date, and temperature, with warnings above 40°C and severe alerts above 45°C.
 - **Search Reading**: find all readings for a selected calendar date and region.
 - **Range Query**: return readings between two dates, including readable UTC times.
 - **Delete Reading**: delete all readings for a selected date and region.
@@ -26,7 +26,7 @@ The sidebar provides these views:
 - **All Data**: display the complete dataset with region, recorded UTC time, raw timestamp, and temperature.
 - **About the Design**: review the data-structure choices and operation complexity.
 
-The application also displays the current UTC clock separately from the recorded time of each weather reading.
+The application also displays the current UTC clock separately from the recorded time of each weather reading and flags heatwave conditions using the thresholds set by the project brief: warning at 40°C and severe alert at 45°C.
 
 ## Data Storage
 

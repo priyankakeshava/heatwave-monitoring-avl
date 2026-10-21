@@ -15,15 +15,16 @@ import pandas as pd
 import streamlit as st
 
 try:
-    # This becomes active the moment Person 1 & 2 finish dsa/region_manager.py
     from dsa.region_manager import RegionManager  # noqa: F401
-except ImportError:
-    from mock_region_manager import MockRegionManager as RegionManager
+except:
+    pass
 
 REGIONS = [
     "North India", "South India", "East India", "West India",
     "Central India", "Northeast India", "Islands",
 ]
+HEATWAVE_WARNING_THRESHOLD = 40.0
+HEATWAVE_SEVERE_THRESHOLD = 45.0
 DATA_PATH = Path(__file__).parent / "data" / "weather_data.csv"
 
 st.set_page_config(page_title="Heatwave Monitoring — Array[7] of AVL Trees", layout="wide")
@@ -319,13 +320,22 @@ def readable_timestamp(timestamp: int) -> str:
     ).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def classify_heatwave(temperature: float) -> str:
+    if temperature >= HEATWAVE_SEVERE_THRESHOLD:
+        return "Severe heatwave alert"
+    if temperature >= HEATWAVE_WARNING_THRESHOLD:
+        return "Heatwave warning"
+    return "Normal"
+
+
 def readings_dataframe() -> pd.DataFrame:
     records = manager.all_readings()
     frame = pd.DataFrame(records, columns=["region", "timestamp", "temperature"])
     if frame.empty:
         return frame
     frame["date"] = frame["timestamp"].map(readable_timestamp)
-    return frame[["region", "date", "timestamp", "temperature"]]
+    frame["heatwave_status"] = frame["temperature"].map(classify_heatwave)
+    return frame[["region", "date", "timestamp", "temperature", "heatwave_status"]]
 
 
 def results_dataframe(results) -> pd.DataFrame:
@@ -333,7 +343,8 @@ def results_dataframe(results) -> pd.DataFrame:
     if frame.empty:
         return frame
     frame["date"] = frame["timestamp"].map(readable_timestamp)
-    return frame[["date", "timestamp", "temperature"]]
+    frame["heatwave_status"] = frame["temperature"].map(classify_heatwave)
+    return frame[["date", "timestamp", "temperature", "heatwave_status"]]
 
 
 manager = get_manager()
@@ -359,6 +370,9 @@ st.title("Heatwave Monitoring")
 st.caption(
     "Current UTC: "
     f"{datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
+)
+st.info(
+    "Heatwave thresholds: warning at 40°C or above, severe alert at 45°C or above."
 )
 st.markdown(
     '<p class="hero-copy">A calm view of stored <strong>temperature readings</strong> '
@@ -422,7 +436,9 @@ def build_dot(node, graph_name):
 if page == "Dashboard":
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     st.subheader("Regional pulse")
-    st.caption("Stored readings by region · each index owns one self-balancing AVL tree")
+    st.caption(
+        "Stored readings by region · warning threshold 40°C, severe threshold 45°C"
+    )
     cols = st.columns(7)
     rows = []
     for i, region in enumerate(REGIONS):
@@ -465,7 +481,20 @@ elif page == "Insert Reading":
         ts = date_timestamp(date_val)
         save_reading_to_csv(region, ts, temp)
         manager.insert_reading(region, ts, temp)
-        st.success(f"Inserted {date_val.isoformat()} → {temp}°C into **{region}** and saved it to CSV (O(log n) insert + rebalance)")
+        heatwave_status = classify_heatwave(temp)
+        if temp >= HEATWAVE_SEVERE_THRESHOLD:
+            st.error(
+                f"Severe heatwave alert: {temp}°C in **{region}** exceeds the 45°C threshold."
+            )
+        elif temp >= HEATWAVE_WARNING_THRESHOLD:
+            st.warning(
+                f"Heatwave warning: {temp}°C in **{region}** exceeds the 40°C threshold."
+            )
+        else:
+            st.success(
+                f"Inserted {date_val.isoformat()} → {temp}°C into **{region}** and saved it to CSV."
+            )
+        st.caption(f"Status: {heatwave_status}")
 
 elif page == "Search Reading":
     st.subheader("Search readings by date")
@@ -479,9 +508,10 @@ elif page == "Search Reading":
         if results:
             result_frame = pd.DataFrame(results)
             result_frame["date"] = result_frame["timestamp"].map(readable_timestamp)
+            result_frame["heatwave_status"] = result_frame["temperature"].map(classify_heatwave)
             st.success(f"Found {len(results)} reading(s) on {date_val.isoformat()} in {region}")
             st.dataframe(
-                result_frame[["date", "timestamp", "temperature"]],
+                result_frame[["date", "timestamp", "temperature", "heatwave_status"]],
                 use_container_width=True,
                 hide_index=True,
             )
@@ -503,7 +533,13 @@ elif page == "Range Query":
             end_timestamp = date_timestamp(end) + 86399
             results = manager.range_query(region, start_timestamp, end_timestamp)
             if results:
-                st.dataframe(results_dataframe(results), use_container_width=True, hide_index=True)
+                heatwave_rows = results_dataframe(results)
+                heatwave_hits = heatwave_rows[heatwave_rows["heatwave_status"] != "Normal"]
+                if not heatwave_hits.empty:
+                    st.warning(
+                        f"Heatwave alert(s) detected in this range: {len(heatwave_hits)} reading(s) at or above 40°C."
+                    )
+                st.dataframe(heatwave_rows, use_container_width=True, hide_index=True)
                 st.caption(f"O(log n + k) — k = {len(results)} records returned")
             else:
                 st.info("No readings found in that range.")
@@ -537,6 +573,10 @@ elif page == "All Data":
     if full_readings.empty:
         st.info("No readings are loaded.")
     else:
+        if (full_readings["heatwave_status"] != "Normal").any():
+            st.warning(
+                "Heatwave warnings are present in the dataset: values at or above 40°C are highlighted."
+            )
         st.dataframe(full_readings, use_container_width=True, hide_index=True)
 
 elif page == "Tree Visualization":
